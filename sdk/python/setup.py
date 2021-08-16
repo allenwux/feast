@@ -43,7 +43,7 @@ REQUIRED = [
     "fastavro>=1.1.0",
     "google-api-core>=1.23.0",
     "googleapis-common-protos==1.52.*",
-    "grpcio>=1.34.0",
+    "grpcio>=1.38.1",
     "Jinja2>=2.0.0",
     "jsonschema",
     "mmh3",
@@ -67,6 +67,10 @@ GCP_REQUIRED = [
     "google-cloud-core==1.4.*",
 ]
 
+AZ_REQUIRED = [
+    "msal==1.13.0",
+]
+
 REDIS_REQUIRED = [
     "redis-py-cluster==2.1.2",
 ]
@@ -80,8 +84,8 @@ CI_REQUIRED = [
     "flake8",
     "black==19.10b0",
     "isort>=5",
-    "grpcio-tools==1.34.0",
-    "grpcio-testing==1.34.0",
+    "grpcio-tools==1.38.1",
+    "grpcio-testing==1.38.1",
     "mock==2.0.0",
     "moto",
     "mypy==0.790",
@@ -206,6 +210,7 @@ setup(
         "gcp": GCP_REQUIRED,
         "aws": AWS_REQUIRED,
         "redis": REDIS_REQUIRED,
+        "az":AZ_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
@@ -219,7 +224,7 @@ setup(
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version={"root": "../..", "relative_to": __file__, "tag_regex": TAG_REGEX},
-    setup_requires=["setuptools_scm", "grpcio", "grpcio-tools==1.34.0", "mypy-protobuf", "sphinx!=4.0.0"],
+    setup_requires=["setuptools_scm", "grpcio", "grpcio-tools==1.38.1", "mypy-protobuf", "sphinx!=4.0.0"],
     package_data={
         "": [
             "protos/feast/**/*.proto",

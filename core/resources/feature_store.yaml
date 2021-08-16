@@ -1,0 +1,6 @@
+project: feast_demo
+registry: http://localhost:7071
+provider: azure
+offline_store:
+    type: sqldb
+    path: data/online_store.db

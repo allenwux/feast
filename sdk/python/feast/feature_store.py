@@ -13,6 +13,7 @@
 # limitations under the License.
 import os
 import warnings
+import requests
 from collections import Counter, OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -22,12 +23,14 @@ import pandas as pd
 from colorama import Fore, Style
 from tqdm import tqdm
 
+from feast.auth import TokenFactory
 from feast import utils
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
     FeatureNameCollisionError,
     FeatureViewNotFoundException,
+    FeastCoreResponseError,
 )
 from feast.feature_service import FeatureService
 from feast.feature_table import FeatureTable
@@ -65,6 +68,7 @@ class FeatureStore:
     repo_path: Path
     _registry: Registry
 
+    
     @log_exceptions
     def __init__(
         self, repo_path: Optional[str] = None, config: Optional[RepoConfig] = None,
@@ -81,8 +85,24 @@ class FeatureStore:
             self.repo_path = Path(os.getcwd())
             self.config = config
         elif repo_path is not None:
-            self.repo_path = Path(repo_path)
-            self.config = load_repo_config(Path(repo_path))
+            if repo_path.startswith("https"):
+                self.repo_path = repo_path
+                headers = {'Authorization': f'Bearer {TokenFactory.get_access_token()}'}
+                response = requests.get(f"{repo_path}/api/feast/core/repo-config", headers=headers)
+                response_obj = response.json()
+                if response.status_code == 200:
+                    self.config = RepoConfig(**response_obj)
+                else:
+                    error_message = "Unknown error."
+                    if "Message" in response_obj:
+                        error_message = response_obj["Message"]
+            
+                    raise FeastCoreResponseError(
+                        response.status_code, error_message
+                    )
+            else:
+                self.repo_path = Path(repo_path)
+                self.config = load_repo_config(Path(repo_path))
         else:
             raise ValueError("Please specify one of repo_path or config.")
 

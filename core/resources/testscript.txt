@@ -1,0 +1,3 @@
+curl -X GET http://localhost:7071/api/feast/core/registry -H "X-MS-CLIENT-PRINCIPAL-NAME: xiwu@microsoft.com"
+curl -X PATCH http://localhost:7071/api/feast/core/registry -d '{"registry":""}' -H "X-MS-CLIENT-PRINCIPAL-NAME: xiwu@microsoft.com"
+curl -X GET http://localhost:7071/api/feast/core/repo-config -H "X-MS-CLIENT-PRINCIPAL-NAME: xiwu@microsoft.com"

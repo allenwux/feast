@@ -12,15 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from logging import error
 import os
 import uuid
+import json
+import sys
+import base64
+
+from google.protobuf.descriptor import Error
+import requests
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryFile
 from typing import List, Optional
 from urllib.parse import urlparse
 
+from feast.auth import TokenFactory
 from feast.entity import Entity
 from feast.errors import (
     EntityNotFoundException,
@@ -29,6 +37,9 @@ from feast.errors import (
     FeatureViewNotFoundException,
     S3RegistryBucketForbiddenAccess,
     S3RegistryBucketNotExist,
+    AzCredentialsError,
+    FeastCoreResponseFormatError,
+    FeastCoreResponseError,
 )
 from feast.feature_service import FeatureService
 from feast.feature_table import FeatureTable
@@ -70,6 +81,8 @@ class Registry:
             self._registry_store = LocalRegistryStore(
                 repo_path=repo_path, registry_path_string=registry_path
             )
+        elif uri.scheme == "https":
+            self._registry_store = FeastCoreRegistryStore(registry_path)
         else:
             raise Exception(
                 f"Registry path {registry_path} has unsupported scheme {uri.scheme}. "
@@ -743,3 +756,146 @@ class S3RegistryStore(RegistryStore):
         file_obj.write(registry_proto.SerializeToString())
         file_obj.seek(0)
         self.s3_client.Bucket(self._bucket).put_object(Body=file_obj, Key=self._key)
+
+
+class FeastCoreRegistryStore(RegistryStore):
+    def __init__(self, uri: str):
+        self._uri = uri
+        self._access_token = None
+        self._token_factory = TokenFactory()
+
+    def get_registry_proto(self):
+        file_obj = TemporaryFile()
+        registry_proto = RegistryProto()
+
+        headers = {'Authorization': f'Bearer {self._get_access_token()}'}
+        response = requests.get(f"{self._uri}/api/feast/core/registry", headers=headers)
+        response_obj = response.json()
+        
+        registry_bytes = base64.b64decode(response_obj['registry'].encode('ascii'))
+        if response.status_code == 200:
+            if "registry" in response_obj:
+                registry_proto.ParseFromString(registry_bytes)
+                return registry_proto
+            else:
+                raise FeastCoreResponseFormatError(
+                    f"Property registry is not available in the response."
+                )
+        else:
+            error_message = "Unknown error."
+            if "Message" in response_obj:
+                error_message = response_obj["Message"]
+            
+            raise FeastCoreResponseError(
+                response.status_code, error_message
+            )
+
+    def update_registry_proto(self, registry_proto: RegistryProto):
+        # the version and last updated date will be updated on the server side
+        registry_proto_bytes = registry_proto.SerializeToString()
+        registry_proto_base64_str = base64.b64encode(registry_proto_bytes).decode('utf-8')
+        content = {'registry': registry_proto_base64_str}
+
+        headers = {'Authorization': f'Bearer {self._get_access_token()}'}
+        response = requests.patch(f"{self._uri}/api/feast/core/registry", headers=headers, json=content)
+        
+        if response.status_code != 200:
+            response_obj = response.json()
+            error_message = "Unknown error."
+            if "Message" in response_obj:
+                error_message = response_obj["Message"]
+            
+            raise FeastCoreResponseError(
+                response.status_code, error_message
+            )
+
+
+    def teardown(self):
+        return
+
+    def _get_access_token(self):
+        return TokenFactory.get_access_token()
+
+    def _get_access_token_old(self):
+        if (self._access_token is None) or (self._access_token_expire_on is None) or (self._access_token_expire_on < datetime.utcnow()):
+            self._access_token, expire_in = self._get_new_access_token()
+            self._access_token_expire_on = datetime.utcnow() + timedelta(seconds=expire_in)
+        return self._access_token
+
+
+    def _get_new_access_token(self):
+        try:
+            import msal
+        except ImportError as e:
+            from feast.errors import FeastExtrasDependencyImportError
+
+            raise FeastExtrasDependencyImportError("az", str(e))
+
+        # 0. Get basic info from environment variables
+        authority = os.getenv("FEAST_AZ_AUTH_AUTHORITY")
+        
+        if authority is None:
+            tenant_id = os.getenv("FEAST_AZ_AUTH_TENANT_ID")
+            if tenant_id is not None:
+                authority = f"https://login.microsoftonline.com/{tenant_id}"
+        
+        if authority is None:
+            raise AzCredentialsError(
+                f"FEAST_AZ_AUTH_AUTHORITY or FEAST_AZ_AUTH_TENANT_ID is required."
+            )
+        
+        client_id = os.getenv("FEAST_AZ_AUTH_CLIENT_ID")
+
+        if (client_id is None):
+            raise AzCredentialsError(
+                f"FEAST_AZ_AUTH_CLIENT_ID is required."
+            )
+
+        scope = f"api://{client_id}/user_impersonation"
+        
+        spn_client_id = os.getenv("FEAST_AZ_AUTH_SPN_CLIENT_ID")
+        spn_client_secret = os.getenv("FEAST_AZ_AUTH_SPN_CLIENT_SECRET")
+
+        if (spn_client_id is not None) and (spn_client_secret is not None):
+            # Authenticate with confidential client
+            app = msal.ConfidentialClientApplication(
+                spn_client_id, authority, spn_client_secret
+            )
+
+            result = None
+
+            result = app.acquire_token_for_client(scope, account=None)
+
+            if not result:
+                result = app.acquire_token_for_client(scope)
+
+
+        else:
+            # Authenticate with device code flow
+            app = msal.PublicClientApplication(
+                client_id, authority=authority,
+            )
+
+            result = None
+
+            flow = app.initiate_device_flow([scope])
+            if "user_code" not in flow:
+                raise AzCredentialsError(
+                    f"Fail to create device flow. Error {json.dumps(flow, indent=4)}"
+                )
+
+            print(flow["message"])
+            sys.stdout.flush()
+            result = app.acquire_token_by_device_flow(flow)
+        
+        if ("access_token" in result) and ("expires_in" in result):
+            return result["access_token"], result["expires_in"]
+        else:
+            if "error_description" in result:
+                raise AzCredentialsError(
+                    result["error_description"]
+                )
+            else:
+                raise AzCredentialsError(
+                    str(result["error"])
+                )

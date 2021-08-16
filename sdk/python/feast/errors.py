@@ -200,3 +200,21 @@ class InvalidEntityType(Exception):
             f"The entity dataframe you have provided must be a Pandas DataFrame or a SQL query, "
             f"but we found: {entity_type} "
         )
+
+class AzCredentialsError(Exception):
+    def __init__(self, details: str):
+        super().__init__(
+            f"Fail to get access token. Details: {details}"
+        )
+
+class FeastCoreResponseError(Exception):
+    def __init__(self, status_code: int, error_message: str):
+        super().__init__(
+            f"The request failed with status code {status_code} and error message {error_message}"
+        )
+
+class FeastCoreResponseFormatError(Exception):
+    def __init__(self, details: str):
+        super().__init__(
+            f"The format of response is invalid. Details: {details}"
+        )
