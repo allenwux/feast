@@ -18,7 +18,5 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(status_code=403)
 
     registry_service = RegistryService()
-    registry_proto = registry_service.get_registry_proto().SerializeToString()
-    registry_proto_base64_str = base64.b64encode(registry_proto).decode('utf-8')
-    logging.info(str(registry_proto_base64_str))
-    return func.HttpResponse(json.dumps({"registry": str(registry_proto_base64_str)}))
+    registry_proto = registry_service.get_registry()
+    return func.HttpResponse(registry_proto)

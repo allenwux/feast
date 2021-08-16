@@ -19,4 +19,4 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     registry_service = RegistryService()
     repo_config = registry_service.get_repo_config()
-    return func.HttpResponse(json.dumps(repo_config.__dict__))
+    return func.HttpResponse(repo_config)
