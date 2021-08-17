@@ -1,12 +1,12 @@
 import base64
 import json
 from proto.v012.feast.core.Registry_pb2 import Registry
-from metadata.metadata_service import BlobMetadataService
+from metadata.metadata_service import MetadataServiceFactory
 
 class RegistryService:
 
     def __init__(self):
-        self.metadata_service = BlobMetadataService()
+        self.metadata_service = MetadataServiceFactory.GetMetadataService()
         return
 
     def get_repo_config(self):
