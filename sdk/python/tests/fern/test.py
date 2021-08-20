@@ -6,12 +6,21 @@ import pandas as pd
 
 store = FeatureStore(repo_path="https://ferndemo.azurewebsites.net")
 
-print(store.list_feature_views())
+feature_views = store.list_feature_views()
+print(f"{len(feature_views)} feature views found.")
+print(feature_views)
+input("Press Enter to continue...")
 
-# df = pd.read_csv("C:\\Users\\xiwu\\Downloads\\driver.csv")
-# df["datetime"] = pd.to_datetime(df["datetime"])
-# df.to_parquet("C:\\Users\\xiwu\\Downloads\\driver.parquet")
+####################################################################################################################################
 
+print(f"The raw data content")
+df = pd.read_parquet(".\\tests\\fern\\driver.parquet")
+print(df.head())
+input("Press Enter to continue...")
+
+####################################################################################################################################
+
+print(f"Create a feature view.")
 parquet_file_source = FileSource(
     file_format=ParquetFormat(),
     path=".\\tests\\fern\\driver.parquet",
@@ -32,7 +41,16 @@ driver_stats_fv = FeatureView(
 )
 
 store.apply([entity, driver_stats_fv])
+print("Create feature view driver_activity.")
 
+feature_views = store.list_feature_views()
+print(f"{len(feature_views)} feature views found.")
+print(feature_views)
+input("Press Enter to continue...")
+
+####################################################################################################################################
+
+print(f"Get historical feature.")
 entity_df = pd.DataFrame.from_dict(
     {
         "drivers": [1, 2, 3, 4],
@@ -54,3 +72,15 @@ training_df = store.get_historical_features(
 ).to_df()
 
 print(training_df.head())
+input("Press Enter to continue...")
+
+####################################################################################################################################
+
+print(f"Delete the feature view")
+store.delete_feature_view("driver_activity")
+store.apply([])
+print(f"Feature view driver_activity deleted.")
+
+feature_views = store.list_feature_views()
+print(f"{len(feature_views)} feature views found.")
+print(feature_views)
