@@ -12,7 +12,7 @@ from feast.usage import log_exceptions
 # These dict exists so that:
 # - existing values for the online store type in featurestore.yaml files continue to work in a backwards compatible way
 # - first party and third party implementations can use the same class loading code path.
-ONLINE_STORE_CLASS_FOR_TYPE = {
+ONLINE_STORE_CLASS_FOR_TYPE =   {
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
@@ -23,6 +23,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "file": "feast.infra.offline_stores.file.FileOfflineStore",
     "bigquery": "feast.infra.offline_stores.bigquery.BigQueryOfflineStore",
     "redshift": "feast.infra.offline_stores.redshift.RedshiftOfflineStore",
+    "mssql": "feast.infra.offline_stores.mssql.SqlServerOfflineStore"
 }
 
 

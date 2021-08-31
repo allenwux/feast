@@ -25,7 +25,10 @@ from feast.repo_config import RepoConfig
 
 
 class RetrievalJob(ABC):
-    """RetrievalJob is used to manage the execution of a historical feature retrieval"""
+    """
+    RetrievalJob is used to manage the execution of a historical
+    feature retrieval
+    """
 
     @abstractmethod
     def to_df(self) -> pd.DataFrame:
@@ -40,8 +43,8 @@ class RetrievalJob(ABC):
 
 class OfflineStore(ABC):
     """
-    OfflineStore is an object used for all interaction between Feast and the service used for offline storage of
-    features.
+    OfflineStore is an object used for all interaction between Feast and the
+    service used for offline storage of features.
     """
 
     @staticmethod
@@ -57,9 +60,10 @@ class OfflineStore(ABC):
         end_date: datetime,
     ) -> RetrievalJob:
         """
-        Note that join_key_columns, feature_name_columns, event_timestamp_column, and created_timestamp_column
-        have all already been mapped to column names of the source table and those column names are the values passed
-        into this function.
+        Note that join_key_columns, feature_name_columns,
+        event_timestamp_column,and created_timestamp_column
+        have all already been mapped to column names of the source table
+        and those column names are the values passed into this function.
         """
         pass
 
