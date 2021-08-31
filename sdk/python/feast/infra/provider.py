@@ -148,6 +148,10 @@ def get_provider(config: RepoConfig, repo_path: Path) -> Provider:
             from feast.infra.aws import AwsProvider
 
             return AwsProvider(config)
+        elif config.provider == "azure":
+            from feast.infra.azure import AzureProvider
+
+            return AzureProvider(config)
         elif config.provider == "local":
             from feast.infra.local import LocalProvider
 
